@@ -70,8 +70,12 @@ def evaluate(name: str, p: dict[str, Any]) -> dict[str, Any]:
         return {"decision": "dispatch", "value": chosen, "evidence": {"capacity": sum(x["flow"] for x in p["pumps"] if x["id"] in chosen)}}
     if name == "booster_failover":
         rows = [Unit(str(x["id"]), bool(x["healthy"]), int(x["rank"]), float(x["capacity"])) for x in p["units"]]
-        chosen = choose_boosters(rows, float(p["required"]), str(p["failed"]) if p.get("_failed_unit_policy") == "exclude" else "")
-        return {"decision": "reroute", "value": chosen, "evidence": {"failed": p["failed"]}}
+        plan = choose_boosters(rows, float(p["required"]), str(p["failed"]))
+        return {
+            "decision": "reroute",
+            "value": {"selected": list(plan.selected), "excluded": list(plan.excluded)},
+            "evidence": {"failed": p["failed"], "selected_capacity": sum(u.capacity for u in rows if u.id in plan.selected)},
+        }
     if name == "custody_chain":
         events = [Event(int(x["seq"]), str(x["src"]), str(x["dst"]), _dt(x["at"]), str(x["seal"])) for x in p["events"]]
         end = validate_custody(str(p["origin"]), events)
